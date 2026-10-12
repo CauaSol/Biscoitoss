@@ -104,7 +104,7 @@ export default function Home() {
 
   return <main className="app-shell">
     <header className="topbar">
-      <div className="brand"><Image src="/logo.jpg" alt="Logo Chelle’s Biscoitos Amanteigados" width={58} height={58} priority /><div><p className="eyebrow">PAINEL DE CONTROLE</p><h1>Chelle’s <span>Biscoitos</span></h1><p className="subbrand">Amanteigados feitos com carinho</p></div></div>
+      <div className="brand"><Image src="/logo.jpg" alt="Logo Chelle’s Biscoitos Amanteigados" width={58} height={58} priority /><div><p className="eyebrow">PAINEL DE CONTROLE</p><h1>Chelle’s <span>Biscoitos</span></h1><p className="subbrand"></p></div></div>
       <span className={`status ${connected ? 'online' : 'demo'}`}><i />{connected ? 'Online' : 'Prévia'}</span>
     </header>
 
