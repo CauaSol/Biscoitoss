@@ -37,11 +37,8 @@ export default function Home() {
     let alive = true;
     (async () => {
       const [{ data: p, error: pe }, { data: s, error: se }] = await Promise.all([
-      supabase.from('products').select('*').order('name'),
-supabase.from('sales').select('*').order('created_at', { ascending: false }).limit(200)
-
-
-3.
+        supabase!.from('products').select('*').order('name'),
+        supabase!.from('sales').select('*').order('created_at', { ascending: false }).limit(200)
       ]);
       if (!alive) return;
       if (pe || se) { setNotice('Banco conectado, mas não foi possível carregar os dados. Confira a configuração do Supabase.'); return; }
