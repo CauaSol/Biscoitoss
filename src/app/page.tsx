@@ -1,35 +1,3 @@
-'use client';
-
-import Image from 'next/image';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-
-type Product = { id: string; name: string; price: number; stock: number };
-type PaymentMethod = 'Pix' | 'Dinheiro' | 'Débito' | 'Crédito';
-type Sale = { id: string; product_id: string | null; product_name: string; quantity: number; unit_price: number; total: number; created_at: string; status: 'completed' | 'cancelled'; cancelled_at?: string | null; payment_method?: PaymentMethod | null };
-type Tab = 'inicio' | 'venda' | 'produtos' | 'historico';
-
-const money = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const paymentRate: Record<PaymentMethod, number> = { Pix: 0, Dinheiro: 0, Débito: 1.99, Crédito: 4.98 };
-const feeFor = (total: number, method?: PaymentMethod | null) => total * (paymentRate[method || 'Pix'] || 0) / 100;
-const netFor = (total: number, method?: PaymentMethod | null) => total - feeFor(total, method);
-const demoProducts: Product[] = [
-  { id: 'demo-goiaba', name: 'Biscoito de goiaba', price: 12.9, stock: 20 },
-  { id: 'demo-leite', name: 'Biscoito amanteigado tradicional', price: 10, stock: 15 },
-];
-
-export default function Home() {
-  const [tab, setTab] = useState<Tab>('inicio');
-  const [products, setProducts] = useState<Product[]>(demoProducts);
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [productId, setProductId] = useState('demo-goiaba');
-  const [quantity, setQuantity] = useState('1');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Pix');
-  const [productName, setProductName] = useState('');
-  const [productPrice, setProductPrice] = useState('12,90');
-  const [productStock, setProductStock] = useState('0');
-  const [notice, setNotice] = useState('');
-  const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
