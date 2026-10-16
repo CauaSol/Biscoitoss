@@ -53,7 +53,8 @@ export default function Home() {
     const d = new Date(s.created_at); const now = new Date();
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }), [sales]);
-  const revenue = currentMonthSales.filter(s => s.status !== 'cancelled')
+  const revenue = currentMonthSales
+  .filter(s => s.status !== 'cancelled')
   .reduce((sum, s) => sum + netFor(s.total, s.payment_method), 0);
   const unitsSold = currentMonthSales.filter(s => s.status !== 'cancelled').reduce((sum, s) => sum + s.quantity, 0);
   const selectedProduct = products.find(p => p.id === productId);
