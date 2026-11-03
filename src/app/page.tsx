@@ -1,4 +1,70 @@
-const currentMonthExpenses = useMemo(() => expenses.filter(e => { const d = new Date(`${e.expense_date}T12:00:00`); const now = new Date(); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }), [expenses]);
+'use client';
+
+import Image from 'next/image';
+import { useEffect, useMemo, useState } from 'react';
+import type { FormEvent } from 'react';
+import { supabase } from '@/lib/supabase';
+
+type Product = { id: string; name: string; price: number; stock: number };
+type PaymentMethod = 'Pix' | 'Dinheiro' | 'Débito' | 'Crédito';
+type Sale = { id: string; product_id: string | null; product_name: string; quantity: number; unit_price: number; total: number; created_at: string; status: 'completed' | 'cancelled'; cancelled_at?: string | null; payment_method?: PaymentMethod | null };
+type Expense = { id: string; description: string; category: string; amount: number; expense_date: string; };
+type Tab = 'inicio' | 'venda' | 'produtos' | 'historico' | 'custos';
+
+const money = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const todayLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const paymentRate: Record<PaymentMethod, number> = { Pix: 0, Dinheiro: 0, Débito: 1.99, Crédito: 4.98 };
+const feeFor = (total: number, method?: PaymentMethod | null) => total * (paymentRate[method || 'Pix'] || 0) / 100;
+const netFor = (total: number, method?: PaymentMethod | null) => total - feeFor(total, method);
+const demoProducts: Product[] = [
+  { id: 'demo-goiaba', name: 'Biscoito de goiaba', price: 12.9, stock: 20 },
+  { id: 'demo-leite', name: 'Biscoito amanteigado tradicional', price: 10, stock: 15 },
+];
+
+export default function Home() {
+  const [tab, setTab] = useState<Tab>('inicio');
+  const [products, setProducts] = useState<Product[]>(demoProducts);
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [expenseDescription, setExpenseDescription] = useState('');
+  const [expenseCategory, setExpenseCategory] = useState('Ingredientes');
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseDate, setExpenseDate] = useState(todayLocal()); 
+  const [productId, setProductId] = useState('demo-goiaba');
+  const [quantity, setQuantity] = useState('1');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Pix');
+  const [productName, setProductName] = useState('');
+  const [productPrice, setProductPrice] = useState('12,90');
+  const [productStock, setProductStock] = useState('0');
+  const [notice, setNotice] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [connected, setConnected] = useState(false);
+
+  useEffect(() => {
+    if (!supabase) return;
+    let alive = true;
+    (async () => {
+      const [{ data: p, error: pe }, { data: s, error: se }, { data: ex, error: ee }] = await Promise.all([
+        supabase!.from('products').select('*').order('name'),
+        supabase!.from('sales').select('*').order('created_at', { ascending: false }).limit(200),
+        supabase!.from('expenses').select('*').order('expense_date', { ascending: false }).limit(500)
+      ]);
+      if (!alive) return;
+      if (pe || se || ee) { setNotice('Não foi possível carregar todos os dados. Confira as tabelas e permissões do Supabase.'); return; }
+      setProducts((p || []).map((x: any) => ({ id: x.id, name: x.name, price: Number(x.price), stock: Number(x.stock) })));
+      setSales((s || []).map((x: any) => ({ id: x.id, product_id: x.product_id, product_name: x.product_name, quantity: Number(x.quantity), unit_price: Number(x.unit_price), total: Number(x.total), created_at: x.created_at, status: x.status || 'completed', cancelled_at: x.cancelled_at || null, payment_method: x.payment_method || null })));
+      setExpenses((ex || []).map((x: any) => ({ id: x.id, description: x.description, category: x.category, amount: Number(x.amount), expense_date: x.expense_date }))); 
+      setConnected(true);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const currentMonthSales = useMemo(() => sales.filter(s => {
+    const d = new Date(s.created_at); const now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }), [sales]);
+  const revenue = currentMonthSales.filter(s => s.status !== 'cancelled').reduce((sum, s) => sum + netFor(s.total, s.payment_method), 0);
+  const currentMonthExpenses = useMemo(() => expenses.filter(e => { const d = new Date(`${e.expense_date}T12:00:00`); const now = new Date(); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }), [expenses]);
   const expenseTotal = currentMonthExpenses.reduce((sum, e) => sum + e.amount, 0);
   const finalResult = revenue - expenseTotal;
   const saleGross = (products.find(p => p.id === productId)?.price || 0) * Math.max(0, Number(quantity) || 0);
