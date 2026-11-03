@@ -67,6 +67,39 @@ export default function Home() {
   const currentMonthExpenses = useMemo(() => expenses.filter(e => { const d = new Date(`${e.expense_date}T12:00:00`); const now = new Date(); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }), [expenses]);
   const expenseTotal = currentMonthExpenses.reduce((sum, e) => sum + e.amount, 0);
   const finalResult = revenue - expenseTotal;
+
+  // Divide o mês em períodos fixos: dias 1–7, 8–14, 15–21, 22–28 e 29–fim.
+  const weeklyResults = useMemo(() => {
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const weekCount = Math.ceil(daysInMonth / 7);
+
+    return Array.from({ length: weekCount }, (_, index) => {
+      const startDay = index * 7 + 1;
+      const endDay = Math.min(startDay + 6, daysInMonth);
+      const weekSales = currentMonthSales.filter(s => {
+        if (s.status === 'cancelled') return false;
+        const date = new Date(s.created_at);
+        const day = date.getDate();
+        return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && day >= startDay && day <= endDay;
+      });
+      const weekExpenses = currentMonthExpenses.filter(e => {
+        const date = new Date(`${e.expense_date}T12:00:00`);
+        const day = date.getDate();
+        return day >= startDay && day <= endDay;
+      });
+      const salesNet = weekSales.reduce((sum, sale) => sum + netFor(sale.total, sale.payment_method), 0);
+      const expensesNet = weekExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+      return {
+        number: index + 1,
+        startDay,
+        endDay,
+        sales: salesNet,
+        expenses: expensesNet,
+        profit: salesNet - expensesNet,
+      };
+    });
+  }, [currentMonthSales, currentMonthExpenses]);
   const saleGross = (products.find(p => p.id === productId)?.price || 0) * Math.max(0, Number(quantity) || 0);
   const saleFee = feeFor(saleGross, paymentMethod);
   const saleNet = saleGross - saleFee;
@@ -165,6 +198,7 @@ export default function Home() {
       <div className="stats"><article className="stat-card featured"><div className="stat-icon">R$</div><p>Resultado do mês</p><strong>{money(finalResult)}</strong><small>Vendas líquidas menos despesas</small></article><article className="stat-card"><div className="stat-icon">↘</div><p>Despesas do mês</p><strong>{money(expenseTotal)}</strong><small>Custos registrados</small></article><article className="stat-card"><div className="stat-icon">♡</div><p>Unidades vendidas</p><strong>{unitsSold}</strong><small>Neste mês</small></article><article className="stat-card"><div className="stat-icon">▦</div><p>Produtos cadastrados</p><strong>{products.length}</strong><small>Tipos de biscoito</small></article></div>
       <section className="panel payment-chart"><div className="section-heading"><div><h3>Vendas por forma de pagamento</h3><p>Valores líquidos estimados após as taxas, sem vendas canceladas.</p></div></div>{paymentGrandTotal === 0 ? <p className="chart-empty">Os valores aparecerão aqui conforme as novas vendas forem registradas.</p> : paymentTotals.map(item => <div className="payment-bar-row" key={item.method}><div className="payment-bar-label"><span>{item.method}</span><b>{money(item.total)}</b></div><div className="payment-bar-track"><div className="payment-bar-fill" style={{ width: `${Math.min(100, item.total / paymentGrandTotal * 100)}%` }} /></div></div>)}</section>
       <section className="panel"><div className="section-heading"><div><h3>Resumo financeiro</h3><p>Vendas após taxas da maquininha menos custos registrados.</p></div></div><div className="payment-bar-label"><span>Vendas líquidas</span><b>{money(revenue)}</b></div><div className="payment-bar-label"><span>Despesas</span><b>- {money(expenseTotal)}</b></div><div className="payment-bar-label"><strong>Resultado</strong><strong>{money(finalResult)}</strong></div><button className="text-button" onClick={() => setTab('custos')}>Gerenciar custos →</button></section>
+      <section className="panel"><div className="section-heading"><div><h3>Lucro por semana</h3><p>Vendas líquidas menos despesas registradas em cada período do mês.</p></div></div>{weeklyResults.map(week => <div className="weekly-result" key={week.number} style={{ padding: '12px 0', borderBottom: '1px solid var(--border, #eee)' }}><div className="payment-bar-label"><strong>{week.number}ª semana</strong><b>{money(week.profit)}</b></div><small style={{ display: 'block', opacity: 0.7 }}>{`Dias ${week.startDay} a ${week.endDay}`} · Vendas: {money(week.sales)} · Despesas: {money(week.expenses)}</small></div>)}</section>
       <button className="primary big-action" onClick={() => setTab('venda')}><span className="plus">＋</span><span><b>Registrar uma venda</b><small>Escolha o biscoito e a quantidade</small></span><span className="arrow">→</span></button>
       <section className="panel"><div className="section-heading"><div><h3>Estoque de biscoitos</h3><p>Veja o que ainda tem disponível.</p></div><button className="text-button" onClick={() => setTab('produtos')}>Ver produtos →</button></div>
         {products.length ? <div className="product-list">{products.map(p => <div className="product-row" key={p.id}><div className="cookie-icon">♡</div><div className="product-info"><b>{p.name}</b><small>{money(p.price)} por unidade</small></div><span className={`stock-pill ${p.stock < 5 ? 'low' : ''}`}>{p.stock} un.</span></div>)}</div> : <div className="empty">Nenhum produto cadastrado ainda.</div>}
